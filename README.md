@@ -14,11 +14,11 @@ The purpose of this utility is to enable an easy grasp of GPU statistics when yo
 
 ## Prerequisites
 
-1. bash, and a terminal simulator with xterm-256color support (usually shipped with your \*nux).
-2. `perl` version 5 or higher installed on the host running `gpureport.sh` (usually shipped with your \*nux, check with `perl --version`).
+1. bash, and a terminal simulator with xterm-256color support (usually shipped with your linux/unix).
+2. `perl` version 5 or higher installed on the host running `gpureport.sh` (usually shipped with your linux/unix, check with `perl --version`).
 3. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file), check [this](https://kb.iu.edu/d/aews) for instructions.
 4. [gpustat](https://github.com/wookayin/gpustat) installed on all target hosts.
-5. [jq](https://github.com/stedolan/jq) installed on the host running `gpureport.sh` (install with [anaconda](https://anaconda.org/conda-forge/jq) if you don't want to compile from source).
+5. [jq](https://github.com/stedolan/jq) installed on the host running `gpureport.sh` (download a [release](https://github.com/stedolan/jq/releases/latest) and make sure `jq` is in `$PATH`, or install with [anaconda](https://anaconda.org/conda-forge/jq)).
 
 ## Configuration
 
