@@ -16,20 +16,21 @@ The purpose of this utility is to enable a easy grasp of GPU statistics when you
 2. A terminal simulator with xterm-256color support.
 3. `gpustat` installed on all target hosts.
 4. `jq` installed on the host running `gpureport.sh`.
+5. `perl>=5` installed on the host running `gpureport.sh`.
 
 ## Usage
 
-To prints the report to your terminal:
+Print the report to your terminal:
 ```shell
 bash gpureport.sh [config_file]
 ```
 
-You can also redirect the report to a file and `cat` it later on:
+Redirect the report to a file and `cat` it later on:
 ```shell
 bash gpureport.sh [config_file] > report.txt ; cat report.txt
 ```
 
-You can also combine it with `watch` to get the latest updates:
+Combine it with `watch` to get the latest updates without waiting:
 ```shell
 # Run this in a tmux session
 while true ; do IFS= ; report=$(bash gpureport.sh) ; echo $report > report.txt ; sleep 60 ; done
@@ -72,4 +73,6 @@ Server-side error:  host3
 Wed Feb 32 24:61:61 +13 1900
 ```
 
-## Disclaimer
+## Limitations & Disclaimer
+
+The script probably won't scale up to hundreds of target hosts, and it won't be fixed very soon.
