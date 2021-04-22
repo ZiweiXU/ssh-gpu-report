@@ -6,20 +6,19 @@ The purpose of this utility is to enable an easy grasp of GPU statistics when yo
 
 ## What's good about it
 
-1. Useful information: remaining memory, utility (%), power, cpu load, and user list.
-2. Minimal configuration efforts (especially if you've got an NFS in your computation cluster)
-3. Queries are spawned as batches of background jobs with a controllable size (useful when you have a large pool)
+1. Minimal configuration efforts: no server needed on the remote host
+2. Useful information: remaining memory, utility (%), power, cpu load, and user list
+3. Queries are spawned as batches of parallel jobs (useful for a large pool)
 4. Filter and highlight GPU by remaining memory
 5. Feedbacks for failed cases
 
 ## Prerequisites
 
-1. bash
-2. A terminal simulator with xterm-256color support.
-3. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file).
-4. `gpustat` installed on all target hosts (install with pip or anaconda).
-5. `jq` installed on the host running `gpureport.sh` (install with anaconda).
-6. `perl>=5` installed on the host running `gpureport.sh`.
+1. bash, and a terminal simulator with xterm-256color support (usually shipped with your \*nux distribution).
+2. `perl` version 5 or higher installed on the host running `gpureport.sh` (usually shipped with your \*nux distribution, check with `perl --version`).
+3. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file), check [this](https://kb.iu.edu/d/aews) for instructions.
+4. [gpustat](https://github.com/wookayin/gpustat) installed on all target hosts.
+5. [jq](https://github.com/stedolan/jq) installed on the host running `gpureport.sh`.
 
 ## Configuration
 
