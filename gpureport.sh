@@ -24,10 +24,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-### helpers and constants
-calc() { echo - | awk "{print $1}"; }
+### config file
+# shellcheck source=gpureport_config.sh
+config_file=${1:-gpureport_config.sh}
+source "$config_file"
 
-timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+### constants and helpers
+calc() { echo - | awk "{print $1}"; }
 
 elementIn () {
   local e match="$1"
@@ -36,36 +39,57 @@ elementIn () {
   return 1
 }
 
-TIME_OUT_CODE=142
-SERVER_SIDE_ERROR_CODE=143
-SSH_AUTH_ERROR_CODE=255
+timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
-### config file
-# shellcheck source=gpureport_config.sh
-source "${1:-gpureport_config.sh}"
-
-RAMAIN_MEMORY_LIMIT=$((THRES*1024))
-ssh_timeout_servers=()
-ssh_failed_servers=()
-gpu_failed_servers=()
-printf "SERVER   GPU\t REMAIN_M/TOTAL_M\t UTIL\t POWER/MAXPWR\t LOAD\t USER\n"
-printf -- "------   ---\t ----------------\t ----\t ------------\t ----\t ----\n"
-for server in "${SERVER_LIST[@]}" ; do
-    # retrive GPU info
+qworker() {
+    server=$1
     info=$(timeout $SSH_TIMEOUT \
     ssh -q -o StrictHostKeyChecking=no -o PasswordAuthentication=no $server \
     "echo -n \$(gpustat --json 2>/dev/null) ; echo -n \| ;\
     uptime | sed -r 's/.+([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+)/\2/'")
     outcome=$?
-
     if [ $outcome -ne $TIME_OUT_CODE ]; then
         IFS=\| read -r gpu_info load_avg <<< "$info"
         if [ -z "$gpu_info" ]; then outcome=$SERVER_SIDE_ERROR_CODE; fi
         if [ -z "$load_avg" ]; then outcome=$SSH_AUTH_ERROR_CODE; fi
     fi
-    
-    # if connected and GPU info is successfully retrieved
+
     if [ "$outcome" -eq "0" ] ; then
+        echo "$gpu_info" > $TEMP_DIR/$server.gpu_info
+        echo "$load_avg" > $TEMP_DIR/$server.load_avg
+    elif [ "$outcome" -eq $TIME_OUT_CODE ] ; then
+        echo $outcome > $TEMP_DIR/$server.timeout
+    elif [ "$outcome" -eq $SSH_AUTH_ERROR_CODE ] ; then
+        echo $outcome > $TEMP_DIR/$server.sshreject
+    else
+        echo $outcome > $TEMP_DIR/$server.servererror
+    fi
+}
+
+# Start
+
+mkdir -p $TEMP_DIR
+
+RAMAIN_MEMORY_LIMIT=$((THRES*1024))
+ssh_timeout_servers=()
+ssh_failed_servers=()
+target_failed_servers=()
+printf "SERVER   GPU\t REMAIN_M/TOTAL_M\t UTIL\t POWER/MAXPWR\t LOAD\t USER\n"
+printf -- "------   ---\t ----------------\t ----\t ------------\t ----\t ----\n"
+
+job_counter=0
+for server in "${SERVER_LIST[@]}" ; do
+    qworker $server &
+    job_counter=$((job_counter+1))
+    if [ $job_counter -ge $QUERY_BATCH_SIZE ] ; then wait; job_counter=0; fi
+done
+wait
+
+for server in "${SERVER_LIST[@]}" ; do
+    # if connected and GPU info is successfully retrieved
+    if test -f $TEMP_DIR/$server.gpu_info ; then
+        gpu_info=$(cat $TEMP_DIR/$server.gpu_info)
+        load_avg=$(cat $TEMP_DIR/$server.load_avg)
         
         # truncate long / pad shorter host names into 8 characters
         this_server=${server}
@@ -108,16 +132,19 @@ for server in "${SERVER_LIST[@]}" ; do
             "$gpu_util" "$gpu_power_draw" "$gpu_power_limit" "$load_avg" "$proc_usr"
         
         done
-
-    # else, check the return code
-    elif [ "$outcome" -eq $TIME_OUT_CODE ] ; then 
+    # else, check the return status
+    elif test -f $TEMP_DIR/$server.timeout ; then 
         ssh_timeout_servers+=("\\e[1;35m$server\\e[0m ")
-    elif [ "$outcome" -eq $SSH_AUTH_ERROR_CODE ] ; then
+    elif test -f $TEMP_DIR/$server.sshreject ; then
         ssh_failed_servers+=("\\e[1;35m$server\\e[0m ")
+    elif test -f $TEMP_DIR/$server.servererror; then
+        target_failed_servers+=("\\e[1;35m$server\\e[0m ")
     else
-        gpu_failed_servers+=("\\e[1;35m$server\\e[0m ")
+        echo "Info file $TEMP_DIR/$server* not found. "
     fi
 done
+
+rm $TEMP_DIR/*
 
 echo
 printf "%b\n%b\n" "\\e[1;35mFailed Servers\\e[0m" "\\e[1;35m--------------\\e[0m"
@@ -132,7 +159,7 @@ for fs in "${ssh_failed_servers[@]}" ; do
 done
 echo 
 printf "%s " "Server-side error: "
-for fs in "${gpu_failed_servers[@]}" ; do
+for fs in "${target_failed_servers[@]}" ; do
     printf "%b" "$fs"
 done
 
