@@ -2,21 +2,28 @@
 
 **ssh-gpu-report** is a bash script that generates utility report for GPUs on remote host(s).
 It is built upon [gpustat](https://github.com/wookayin/gpustat) and [jq](https://github.com/stedolan/jq).
-The purpose of this utility is to enable a easy grasp of GPU statistics when you have access to a large pool of GPU computation nodes, with minimal extra configuration efforts on the remote side.
+The purpose of this utility is to enable an easy grasp of GPU statistics when you have access to a large pool of GPU computation nodes, with minimal extra configuration efforts on the remote side.
 
 ## What's good about it
 
-1. Minimal configuration (especially if you've got an NFS in your computation cluster)
-2. Filter and highlight GPU by remaining memory
-3. Feedbacks for failed cases
+1. Useful information: remaining memory, utility (%), power, cpu load, and user list.
+2. Minimal configuration efforts (especially if you've got an NFS in your computation cluster)
+3. Queries are spawned as batches of background jobs with a controllable size (useful when you have a large pool)
+4. Filter and highlight GPU by remaining memory
+5. Feedbacks for failed cases
 
 ## Prerequisites
 
-1. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file).
+1. bash
 2. A terminal simulator with xterm-256color support.
-3. `gpustat` installed on all target hosts.
-4. `jq` installed on the host running `gpureport.sh`.
-5. `perl>=5` installed on the host running `gpureport.sh`.
+3. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file).
+4. `gpustat` installed on all target hosts (install with pip or anaconda).
+5. `jq` installed on the host running `gpureport.sh` (install with anaconda).
+6. `perl>=5` installed on the host running `gpureport.sh`.
+
+## Configuration
+
+The configuration template [gpureport_config.sh](gpureport_config.sh) provides all the required documentations and reasonable defaults.
 
 ## Usage
 
@@ -38,10 +45,6 @@ while true ; do IFS= ; report=$(bash gpureport.sh) ; echo $report > report.txt ;
 ```
 and access the report at anytime using `cat report.txt`.
 
-## Configuration
-
-The configuration template [gpureport_config.sh](gpureport_config.sh) provides all the required documentations and reasonable defaults.
-
 ## How to read the report
 
 The report consists of a table showing the statistics of GPUs on target hosts and a failure summary.
@@ -52,7 +55,7 @@ The failure summary contains servers that fall into the following categories:
 - SSH rejected: the target host denied the connection. Check if key authentication is ready, or if the admin has reserved the target host for other uses.
 - Server-side errors: the connection was successful, however, gpustat failed to query the GPU information. Further diagnosis is required on the target host.
 
-Here is an example report (highlights are not shown):
+Here is an example report (without color):
 ```
 SERVER   GPU   REMAIN_M/TOTAL_M  UTIL  POWER/MAXPWR  LOAD    USER
 ------   ---   ----------------  ----  ------------  ----    ----
@@ -75,4 +78,7 @@ Wed Feb 32 24:61:61 +13 1900
 
 ## Limitations & Disclaimer
 
-The script probably won't scale up to hundreds of target hosts, and it won't be fixed very soon.
+Batched query is not fully parallelized. 
+I tried using `xargs` for better parallelization but ended up using bash's job control.
+This is because `xargs` will abort non-negotiably when it captures an exit code 255.
+Unfortunately I didn't find a good work-around because 255 is an important signal for failure classification.
