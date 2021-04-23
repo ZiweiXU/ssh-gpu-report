@@ -12,6 +12,37 @@ The purpose of this utility is to enable an easy grasp of GPU statistics when yo
 4. Filter and highlight GPU by remaining memory
 5. Feedbacks for failed cases
 
+## What's in the report
+
+The report consists of a table showing the statistics of GPUs on target hosts and a failure summary.
+The table should be readable enough.
+The failure summary contains servers that fall into the following categories:
+
+- SSH timeout: the query command failed to complete within the configured time. There could be a network congestion or the target host was very busy.
+- SSH rejected: the target host denied the connection. Check if key authentication is ready, or if the admin has reserved the target host for other uses.
+- Server-side errors: the connection was successful, however, gpustat failed to query the GPU information. Further diagnosis is required on the target host.
+
+Here is an example report (without color):
+```
+SERVER   GPU   REMAIN_M/TOTAL_M  UTIL  POWER/MAXPWR  LOAD    USER
+------   ---   ----------------  ----  ------------  ----    ----
+host1    0     11019/11019       0        4/250      1.25
+host1    1     11019/11019       0       17/250      1.25
+host1    2     11019/11019       0       19/250      1.25
+host1    3     11019/11019       0        0/250      1.25
+host2    0     1165/11019        0       64/250      27.84   "user1"(7431) "user2"(4139)
+host2    1     7249/11019        6       60/250      27.84   "user3"(40938) "user2"(22615)
+host2    2     7332/11019        0       21/250      27.84   "user3"(40938)
+
+Failed Servers
+--------------
+SSH timeout:
+SSH rejected:
+Server-side error:  host3
+
+Wed Feb 32 24:61:61 +13 1900
+```
+
 ## Prerequisites
 
 1. bash, and a terminal simulator with xterm-256color support (usually shipped with your linux/unix).
@@ -43,37 +74,6 @@ while true ; do IFS= ; report=$(bash gpureport.sh) ; echo $report > report.txt ;
 # Detach from the session
 ```
 and access the report at anytime using `cat report.txt`.
-
-## How to read the report
-
-The report consists of a table showing the statistics of GPUs on target hosts and a failure summary.
-The table should be readable enough.
-The failure summary contains servers that fall into the following categories:
-
-- SSH timeout: the query command failed to complete within the configured time. There could be a network congestion or the target host was very busy.
-- SSH rejected: the target host denied the connection. Check if key authentication is ready, or if the admin has reserved the target host for other uses.
-- Server-side errors: the connection was successful, however, gpustat failed to query the GPU information. Further diagnosis is required on the target host.
-
-Here is an example report (without color):
-```
-SERVER   GPU   REMAIN_M/TOTAL_M  UTIL  POWER/MAXPWR  LOAD    USER
-------   ---   ----------------  ----  ------------  ----    ----
-host1    0     11019/11019       0        4/250      1.25
-host1    1     11019/11019       0       17/250      1.25
-host1    2     11019/11019       0       19/250      1.25
-host1    3     11019/11019       0        0/250      1.25
-host2    0     1165/11019        0       64/250      27.84   "user1"(7431) "user2"(4139)
-host2    1     7249/11019        6       60/250      27.84   "user3"(40938) "user2"(22615)
-host2    2     7332/11019        0       21/250      27.84   "user3"(40938)
-
-Failed Servers
---------------
-SSH timeout:
-SSH rejected:
-Server-side error:  host3
-
-Wed Feb 32 24:61:61 +13 1900
-```
 
 ## Limitations & Disclaimer
 
