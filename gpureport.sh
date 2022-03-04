@@ -1,7 +1,7 @@
 #!/bin/bash
 # The MIT License
 
-# Copyright (c) 2021 Ziwei Xu <ziweixu.zwx@gmail.com>
+# Copyright (c) 2022 Ziwei Xu <ziweixu.zwx@gmail.com>
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -46,7 +46,7 @@ qworker() {
     info=$(timeout $SSH_TIMEOUT \
     ssh -q -o StrictHostKeyChecking=no -o PasswordAuthentication=no $server \
     "echo -n \$(gpustat --json 2>/dev/null) ; echo -n \| ;\
-    uptime | sed -r 's/.+([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+)/\2/'")
+    uptime | sed -r 's/.+([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+)/\2/'" 2>/dev/null)
     outcome=$?
     if [ $outcome -ne $TIME_OUT_CODE ]; then
         IFS=\| read -r gpu_info load_avg <<< "$info"
@@ -64,30 +64,8 @@ qworker() {
     else
         echo $outcome > $TEMP_DIR/$server.servererror
     fi
-}
 
-# Start
-
-mkdir -p $TEMP_DIR
-
-RAMAIN_MEMORY_LIMIT=$((THRES*1024))
-ssh_timeout_servers=()
-ssh_failed_servers=()
-target_failed_servers=()
-printf "SERVER   GPU\t REMAIN_M/TOTAL_M\t UTIL\t POWER/MAXPWR\t LOAD\t USER\n"
-printf -- "------   ---\t ----------------\t ----\t ------------\t ----\t ----\n"
-
-job_counter=0
-for server in "${SERVER_LIST[@]}" ; do
-    qworker $server &
-    job_counter=$((job_counter+1))
-    if [ $job_counter -ge $QUERY_BATCH_SIZE ] ; then wait; job_counter=0; fi
-done
-wait
-
-for server in "${SERVER_LIST[@]}" ; do
-    # if connected and GPU info is successfully retrieved
-    if test -f $TEMP_DIR/$server.gpu_info ; then
+    if test -f $TEMP_DIR/$server.gpu_info; then
         gpu_info=$(cat $TEMP_DIR/$server.gpu_info)
         load_avg=$(cat $TEMP_DIR/$server.load_avg)
         
@@ -99,24 +77,22 @@ for server in "${SERVER_LIST[@]}" ; do
         gpu_num=$(echo "$gpu_info" | jq ".gpus | length")
         # retrieve statistics of each gpu
         for gpu in $(seq 0 $((gpu_num-1))) ; do
-
-            gpu_mem_total=$(echo "$gpu_info" | jq ".gpus[$gpu][\"memory.total\"]")
-            gpu_mem_used=$(echo "$gpu_info" | jq ".gpus[$gpu][\"memory.used\"]")
-            gpu_power_limit=$(echo "$gpu_info" | jq ".gpus[$gpu][\"enforced.power.limit\"]")
-            gpu_power_draw=$(echo "$gpu_info" | jq ".gpus[$gpu][\"power.draw\"]")
-            gpu_util=$(echo "$gpu_info" | jq ".gpus[$gpu][\"utilization.gpu\"]")
+            
+            _tmp=$(echo "$gpu_info" | jq ".gpus[$gpu] | .\"memory.total\", .\"memory.used\", .\"enforced.power.limit\", .\"power.draw\", .\"utilization.gpu\", .\"processes\" | length")
+            IFS=$'\n' read -rd '' gpu_mem_total gpu_mem_used gpu_power_limit gpu_power_draw gpu_util proc_num <<< "$_tmp"
             gpu_mem_remain=$((gpu_mem_total-gpu_mem_used))
-            proc_num=$(echo "$gpu_info" | jq ".gpus[$gpu][\"processes\"] | length")
             proc_usr=""
 
             if [[ $proc_num -gt 0 ]] ; then
                 users=()
                 for proc in $(seq 0 $(($proc_num-1))); do
-                    this_usr=$(echo $gpu_info | jq ".gpus[$gpu][\"processes\"][$proc][\"username\"]")
+                    _tmp=$( echo $gpu_info | jq ".gpus[$gpu][\"processes\"][$proc] | .\"username\", .\"pid\"" )
+                    IFS=$'\n' read -rd '' this_usr this_pid <<< "$_tmp"
+
                     if elementIn "${this_usr}" "${users[@]}" ; then continue; fi
                     users+=("$this_usr")
                     if [[ $this_usr = *"$USER_NAME"* ]] ; then this_usr="\\e[32m$this_usr\\e[0m"; fi
-                    this_pid=$(echo $gpu_info | jq ".gpus[$gpu][\"processes\"][$proc][\"pid\"]")
+                    
                     proc_usr="$proc_usr""${this_usr}(${this_pid}) "
                 done
             fi
@@ -129,9 +105,45 @@ for server in "${SERVER_LIST[@]}" ; do
 
             printf "%b %b\t %5s/%-5s \t\t %-3s\t %4s/%-4s \t %s\t %b\n" \
             "$this_server_show_name" "$gpu" "$gpu_mem_remain" "$gpu_mem_total" \
-            "$gpu_util" "$gpu_power_draw" "$gpu_power_limit" "$load_avg" "$proc_usr"
+            "$gpu_util" "$gpu_power_draw" "$gpu_power_limit" "$load_avg" "$proc_usr" >> $TEMP_DIR/$server.line
         
         done
+    fi
+}
+
+# Start
+
+mkdir -p $TEMP_DIR
+
+RAMAIN_MEMORY_LIMIT=$((THRES*1024))
+ssh_timeout_servers=()
+ssh_failed_servers=()
+target_failed_servers=()
+
+echo -ne "Now processing: \n"
+job_counter=0
+for server in "${SERVER_LIST[@]}" ; do
+    qworker $server &
+    echo -ne "$server "
+    job_counter=$((job_counter+1))
+    if [ $job_counter -ge $QUERY_BATCH_SIZE ] ; then 
+        wait
+        job_counter=0
+    fi
+done
+wait
+
+echo 
+echo 
+
+printf -- "------   ---\t ----------------\t ----\t ------------\t ----\t ----\n"
+printf    "SERVER   GPU\t REMAIN_M/TOTAL_M\t UTIL\t POWER/MAXPWR\t LOAD\t USER\n"
+printf -- "------   ---\t ----------------\t ----\t ------------\t ----\t ----\n"
+
+for server in "${SERVER_LIST[@]}" ; do
+    # if connected and GPU info is successfully retrieved
+    if test -f $TEMP_DIR/$server.line ; then
+        cat $TEMP_DIR/$server.line
     # else, check the return status
     elif test -f $TEMP_DIR/$server.timeout ; then 
         ssh_timeout_servers+=("\\e[1;35m$server\\e[0m ")
@@ -144,7 +156,7 @@ for server in "${SERVER_LIST[@]}" ; do
     fi
 done
 
-rm $TEMP_DIR/*
+rm -r $TEMP_DIR
 
 echo
 printf "%b\n%b\n" "\\e[1;35mFailed Servers\\e[0m" "\\e[1;35m--------------\\e[0m"
@@ -162,6 +174,8 @@ printf "%s " "Server-side error: "
 for fs in "${target_failed_servers[@]}" ; do
     printf "%b" "$fs"
 done
+
+echo 
 
 echo
 date
