@@ -6,9 +6,9 @@ The purpose of this utility is to enable an easy grasp of GPU statistics when yo
 
 ## What's good about it
 
-1. Minimal configuration efforts: no server needed on the remote host
+1. Minimal configuration efforts: no extra daemon/service needed on the remote host
 2. Useful information: remaining memory, utility (%), power, cpu load, and user list
-3. Queries are spawned as batches of parallel jobs (useful for a large pool)
+3. Fast query: queries are spawned as batches of parallel jobs (useful for a large pool)
 4. Filter and highlight GPU by remaining memory
 5. Feedbacks for failed cases
 
@@ -50,27 +50,30 @@ Wed Feb 32 24:61:61 +13 1900
 3. SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file), check [this](https://kb.iu.edu/d/aews) for instructions.
 4. [gpustat](https://github.com/wookayin/gpustat) installed on all target hosts.
 5. [jq](https://github.com/stedolan/jq) installed on the host running `gpureport.sh` (download a [release](https://github.com/stedolan/jq/releases/latest) and make sure `jq` is in `$PATH`, or install with [anaconda](https://anaconda.org/conda-forge/jq)).
+6. GNU `xargs>=4.7.0` (usually shipped with your linux/unix)
 
 ## Configuration
 
 The configuration template [gpureport_config.sh](gpureport_config.sh) provides all the required documentations and reasonable defaults.
+Some defaults can be overriden by environment variables.
 
 ## Usage
 
-Print the report to your terminal:
+- Print the report to your terminal:
 ```shell
 bash gpureport.sh [config_file]
 ```
+If no `config_file` is specified, `gpureport.sh` will look for `gpureport_config.sh` in the current working directory.
 
-Redirect the report to a file and `cat` it later on:
+- Redirect the report to a file and `cat` it later on (`INTERACTIVE` is overriden to remove redundant messages):
 ```shell
-bash gpureport.sh [config_file] > report.txt ; cat report.txt
+INTERACTIVE=0 bash gpureport.sh [config_file] > report.txt ; cat report.txt
 ```
 
-Combine it with `watch` to get the latest updates without waiting:
+- Combine it with `watch` to get the latest updates without waiting:
 ```shell
 # Run this in a tmux session
-while true ; do IFS= ; report=$(bash gpureport.sh) ; echo $report > report.txt ; sleep 60 ; done
+while true ; do IFS= ; report=$(INTERACTIVE=0 bash gpureport.sh) ; echo $report > report.txt ; sleep 60 ; done
 # Detach from the session
 ```
 and access the report at anytime using `cat report.txt`.
