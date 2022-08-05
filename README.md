@@ -74,10 +74,3 @@ while true ; do IFS= ; report=$(bash gpureport.sh) ; echo $report > report.txt ;
 # Detach from the session
 ```
 and access the report at anytime using `cat report.txt`.
-
-## Limitations & Disclaimer
-
-Batched query is not fully parallelized. 
-I tried using `xargs` for better parallelization but ended up using bash's job control.
-This is because `xargs` will abort non-negotiably when it captures an exit code 255.
-Unfortunately I didn't find a good work-around because 255 is an important signal for failure classification.
