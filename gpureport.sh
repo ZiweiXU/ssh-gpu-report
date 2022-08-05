@@ -195,14 +195,14 @@ qparser () {
 mkdir -p $TEMP_DIR
 
 export -f qworker qparser timeout cyan green magenta
-echo -ne 'Working... '
-printf %s\\n "${SERVER_LIST[@]}" | xargs -P ${QUERY_BATCH_SIZE} -n1 -I{} bash -c "source ${config_file}; qworker {}" &
-spinner $!
-echo 'done!'
-echo -ne 'Parsing... '
-printf %s\\n "${SERVER_LIST[@]}" | xargs -P ${QUERY_BATCH_SIZE} -n1 -I{} bash -c "source ${config_file}; qparser {}" &
-spinner $!
-echo 'done!'
+[[ INTERACTIVE -eq 1 ]] && echo -ne 'Working... '
+printf %s\\n "${SERVER_LIST[@]}" | xargs -P${QUERY_BATCH_SIZE} -I{} bash -c "source ${config_file}; qworker {}" &
+if [[ INTERACTIVE -eq 1 ]]; then spinner $! ; else wait; fi
+[[ INTERACTIVE -eq 1 ]] && echo 'done!'
+[[ INTERACTIVE -eq 1 ]] && echo -ne 'Parsing... '
+printf %s\\n "${SERVER_LIST[@]}" | xargs -P${QUERY_BATCH_SIZE} -I{} bash -c "source ${config_file}; qparser {}" &
+if [[ INTERACTIVE -eq 1 ]]; then spinner $! ; else wait; fi
+[[ INTERACTIVE -eq 1 ]] && echo 'done!'
 
 ssh_timeout_servers=()
 ssh_failed_servers=()
