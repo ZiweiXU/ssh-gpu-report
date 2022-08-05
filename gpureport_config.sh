@@ -4,13 +4,16 @@
 # A list of hosts to query
 SERVER_LIST=( host1 host2 host3 )
 
+# If set to 1, display progress message and wheel 
+INTERACTIVE=${INTERACTIVE:-1}
+
 # Spawn QUERY_BATCH_SIZE queries as a batch, wait until this batch is done, 
 # spawn a new batch, repeat until finish.
 QUERY_BATCH_SIZE=100
 
 # GPUs with remaining memory higher than THRES(MB) will be highlighted.
 # This value must be an integer.
-GPU_MEM_THRES=5000
+GPU_MEM_THRES=${GPU_MEM_THRES:-5000}
 
 # A username will be highlighed in the report if it contains USER_NAME
 # It has nothing to do with authentication.
@@ -18,7 +21,7 @@ USER_NAME="replace_with_perhaps_a_part_of_your_user_name"
 
 # Classify a server as "SSH timeout" if a query is not completed within
 # SSH_TIMEOUT seconds.
-SSH_TIMEOUT=30
+SSH_TIMEOUT=${SSH_TIMEOUT:-10}
 
 # Temp dir to write GPU info to. It must be at least rw- for the user.
 TEMP_DIR="/tmp/.gpu_report/"
