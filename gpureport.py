@@ -1,4 +1,5 @@
 import os
+import copy
 import json
 import subprocess
 from multiprocessing import Pool
@@ -8,7 +9,7 @@ from typing import List
 try:
     import tabulate, yaspin
 except:
-    raise ModuleNotFoundError("Please install tabulate and yaspin using ``pip install --user tabulate yaspin''")
+    print("Please install tabulate and yaspin using ``pip install --user tabulate yaspin''")
 
 from gpureport_config import get_config
 
@@ -33,6 +34,7 @@ def query_worker(host, config):
                 r"echo $(gpustat --json 2>/dev/null);"
                 r"uptime | sed -r 's/.+([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+),? ([0-9]+\.[0-9]+)/\2/';"
                 r"getconf _NPROCESSORS_ONLN;",
+                r"free | grep Mem | awk '{print $2}{print $3}'",
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -48,40 +50,55 @@ def query_worker(host, config):
     return_code = proc.returncode
     if return_code != 0:
         if return_code == int(config['GPUR_CODE_SERVER_SIDE_ERROR']):
-            result.update({'successful': False, 'comment': 'Server Side'})
+            result.update({'successful': False, 'comment': 'Server Side Err'})
         elif return_code == int(config['GPUR_CODE_AUTH_ERROR']):
-            result.update({'successful': False, 'comment': 'Auth Err'})
+            result.update({'successful': False, 'comment': 'SSH Rej'})
         else:
-            result.update({'successful': False, 'comment': f'Unk Err {result.returncode}'})
+            result.update({'successful': False, 'comment': f'Unknown Err {return_code}'})
 
     return result
 
 def host_info_generator(host_result) -> List[List]:
     host = host_result['host']
-    gpu_info, cpu_load, cpu_count = host_result['payload'].split('\n')[:-1]
-    gpu_info = json.loads(gpu_info)
-
+    gpu_info, cpu_load, cpu_count, mem_total, mem_used = host_result['payload'].split('\n')[:-1]
+    
     host_rows = []
+    
+    host_info = {}
+    host_info['host'] = host
+    host_info['cpu_load'] = cpu_load
+    host_info['cpu_count'] = cpu_count
+    host_info['mem_total'] = int(int(mem_total)/1024/1024)
+    host_info['mem_avail'] = int((int(mem_total) - int(mem_used))/1024/1024)
+
+    try:
+        gpu_info = json.loads(gpu_info)
+    except json.decoder.JSONDecodeError:
+        row_info = copy.deepcopy(host_info)
+        row_info['comment'] = host_result['comment'] + 'GPU Err'
+        host_rows.append(row_info)
+        return host_rows
+    
     gpu_num = len(gpu_info['gpus'])
     for gpu in range(gpu_num):
         this_gpu = gpu_info['gpus'][gpu]
-        row_gpu_info = {}
-        row_gpu_info['host'] = host
-        row_gpu_info['gpu'] = gpu
+        row_info = {}
+        row_info['host'] = host
+        row_info['gpu'] = gpu
         
-        row_gpu_info['gpu_mem_used'] = this_gpu['memory.used']
-        row_gpu_info['gpu_mem_total'] = this_gpu['memory.total']
-        row_gpu_info['gpu_mem_avail'] = row_gpu_info['gpu_mem_total'] - row_gpu_info['gpu_mem_used']
+        row_info['gpu_mem_used'] = this_gpu['memory.used']
+        row_info['gpu_mem_total'] = this_gpu['memory.total']
+        row_info['gpu_mem_avail'] = row_info['gpu_mem_total'] - row_info['gpu_mem_used']
 
-        if float(row_gpu_info['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
-            row_gpu_info['gpu'] = f'{bcolors.CYAN}{bcolors.BOLD}{gpu}{bcolors.ENDC}'
-            row_gpu_info['host'] = f'{bcolors.CYAN}{bcolors.BOLD}{host}{bcolors.ENDC}'
-            row_gpu_info['gpu_mem_avail'] = f'{bcolors.CYAN}{bcolors.BOLD}{row_gpu_info["gpu_mem_avail"]}{bcolors.ENDC}'
+        if float(row_info['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
+            row_info['gpu'] = f'{bcolors.CYAN}{bcolors.BOLD}{gpu}{bcolors.ENDC}'
+            row_info['host'] = f'{bcolors.CYAN}{bcolors.BOLD}{host}{bcolors.ENDC}'
+            row_info['gpu_mem_avail'] = f'{bcolors.CYAN}{bcolors.BOLD}{row_info["gpu_mem_avail"]}{bcolors.ENDC}'
 
-        row_gpu_info['gpu_power_max'] = this_gpu['enforced.power.limit']
-        row_gpu_info['gpu_power'] = this_gpu['power.draw']
-        row_gpu_info['gpu_util'] = this_gpu['utilization.gpu']
-        row_gpu_info['gpu_temp'] = this_gpu['temperature.gpu']
+        row_info['gpu_power_max'] = this_gpu['enforced.power.limit']
+        row_info['gpu_power'] = this_gpu['power.draw']
+        row_info['gpu_util'] = this_gpu['utilization.gpu']
+        row_info['gpu_temp'] = this_gpu['temperature.gpu']
         
         process_num = len(this_gpu['processes'])
         proc_usr = ""
@@ -99,12 +116,11 @@ def host_info_generator(host_result) -> List[List]:
                 else:
                     proc_usr += f'{this_user}({this_pid}) '
 
-        row_gpu_info['users'] = proc_usr
-        row_gpu_info['cpu_load'] = cpu_load
-        row_gpu_info['cpu_count'] = cpu_count
-        row_gpu_info['comment'] = host_result['comment']
+        row_info['users'] = proc_usr
 
-        host_rows.append(row_gpu_info)
+        row_info.update(host_info)
+
+        host_rows.append(row_info)
     
     return host_rows
 
@@ -137,7 +153,7 @@ if __name__ == '__main__':
         results = worker_pool.map(partial(query_worker, config=config), server_list)
     
     worker_pool.close()
-
+    
     host_rows = []
     for res in results:
         if res['successful']:

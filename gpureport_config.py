@@ -12,8 +12,8 @@ config =dict(
     # Columns to display as a comma-separated list
     # Available columns:
     # host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,
-    # gpu_power_max,cpu_load,cpu_count,users,comment
-    GPUR_COLUMNS = "host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,cpu_load,cpu_count,users,comment",
+    # gpu_power_max,cpu_load,cpu_count,mem_avail,mem_total,users,comment
+    GPUR_COLUMNS = "host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,cpu_load,cpu_count,mem_avail,mem_total,users,comment",
     
     # Maximum simultaneous query
     GPUR_QUERY_BATCH_SIZE = str(os.cpu_count()),
@@ -33,7 +33,7 @@ config =dict(
     
     # Classify a server as "SSH timeout" if a query is not completed within
     # SSH_TIMEOUT seconds.
-    GPUR_SSH_TIMEOUT = '10',
+    GPUR_SSH_TIMEOUT = '5',
     
     # Constants, no need to change in general. 
     GPUR_CODE_TIMEOUT = '142',

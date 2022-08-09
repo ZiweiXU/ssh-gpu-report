@@ -81,7 +81,13 @@ and access the report at anytime using `cat report.txt`.
 ## Experimental Python implementation
 
 There is an experimental Python implementation of `ssh-gpu-report` in the repository.
-The executable `gpureport.py` can be configured by `gpureport_config.py`.
+The executable `gpureport.py` can be configured by `gpureport_config.py`
 
 It requires `python >= 3.3`, and two packages `tabulate` and `yaspin`.
 The prerequisites can be installed by `pip install --user tabulate yaspin`.
+
+Besides all the features in the bash version, it has the following improvements:
+
+- More information: `cpu_count`, `mem_avail`, and `mem_total`.
+- You can turn off undesired columns by removing entries in `GPUR_COLUMNS`.
+- All the entries in the config can be overridden by environment variables.
