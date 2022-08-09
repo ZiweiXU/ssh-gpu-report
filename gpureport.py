@@ -58,13 +58,13 @@ def query_worker(host, config):
 
     return result
 
-def host_info_generator(host_result) -> List[List]:
+def host_info_parser(host_result) -> List[List]:
     host = host_result['host']
     gpu_info, cpu_load, cpu_count, mem_total, mem_used = host_result['payload'].split('\n')[:-1]
     
     host_rows = []
     
-    host_info = {}
+    host_info = copy.deepcopy(host_result)
     host_info['host'] = host
     host_info['cpu_load'] = cpu_load
     host_info['cpu_count'] = cpu_count
@@ -90,10 +90,10 @@ def host_info_generator(host_result) -> List[List]:
         row_info['gpu_mem_total'] = this_gpu['memory.total']
         row_info['gpu_mem_avail'] = row_info['gpu_mem_total'] - row_info['gpu_mem_used']
 
-        if float(row_info['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
-            row_info['gpu'] = f'{bcolors.CYAN}{bcolors.BOLD}{gpu}{bcolors.ENDC}'
-            row_info['host'] = f'{bcolors.CYAN}{bcolors.BOLD}{host}{bcolors.ENDC}'
-            row_info['gpu_mem_avail'] = f'{bcolors.CYAN}{bcolors.BOLD}{row_info["gpu_mem_avail"]}{bcolors.ENDC}'
+        # if float(row_info['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
+        #     row_info['gpu'] = f'{bcolors.CYAN}{bcolors.BOLD}{gpu}{bcolors.ENDC}'
+        #     row_info['host'] = f'{bcolors.CYAN}{bcolors.BOLD}{host}{bcolors.ENDC}'
+        #     row_info['gpu_mem_avail'] = f'{bcolors.CYAN}{bcolors.BOLD}{row_info["gpu_mem_avail"]}{bcolors.ENDC}'
 
         row_info['gpu_power_max'] = this_gpu['enforced.power.limit']
         row_info['gpu_power'] = this_gpu['power.draw']
@@ -101,20 +101,21 @@ def host_info_generator(host_result) -> List[List]:
         row_info['gpu_temp'] = this_gpu['temperature.gpu']
         
         process_num = len(this_gpu['processes'])
-        proc_usr = ""
+        proc_usr = []
         for proc in range(process_num):
             this_user = this_gpu['processes'][proc]['username']
             this_pid = this_gpu['processes'][proc]['pid']
-            for user_mask in config['GPUR_USER_MASK'].split(','):
-                if user_mask in this_user:
-                    break
-            else:
-                for user_hl in config['GPUR_USER_NAME'].split(','):
-                    if user_hl in this_user:
-                        proc_usr += f'{bcolors.GREEN}{this_user}({this_pid}){bcolors.ENDC} '
-                        break
-                else:
-                    proc_usr += f'{this_user}({this_pid}) '
+            proc_usr.append((this_user, this_pid))
+            # for user_mask in config['GPUR_USER_MASK'].split(','):
+            #     if user_mask in this_user:
+            #         break
+            # else:
+            #     for user_hl in config['GPUR_USER_NAME'].split(','):
+            #         if user_hl in this_user:
+            #             proc_usr += f'{bcolors.GREEN}{this_user}({this_pid}){bcolors.ENDC} '
+            #             break
+            #     else:
+            #         proc_usr += f'{this_user}({this_pid}) '
 
         row_info['users'] = proc_usr
 
@@ -125,14 +126,85 @@ def host_info_generator(host_result) -> List[List]:
     return host_rows
 
 
-def column_filter(host_row, columns):
+def column_filter(host_row, columns, formatter=lambda x, y, z: x):
     this_row = []
     for col in columns:
         if col in host_row:
-            this_row.append(host_row[col])
+            this_row.append(formatter(host_row[col], col, host_row))
         else:
             this_row.append('-')
     return this_row
+
+
+def context_formatter(original, col, row_context, config):
+    """Format each column based on its content or the row context.
+    
+    Args:
+    - original: the original value
+    - col: the name of the column
+    - row_context: a dictionary of a row
+    - config: a dictionary of configuration
+
+    Returns:
+    - the formatted value
+    """
+    def compose(*funcs):
+        def funcs_composed(x):
+            for func in funcs:
+                x = func(x)
+            return x
+        return funcs_composed
+
+    def format_failure(original, row_context=row_context, config=config):
+        if not row_context['successful']:
+            return f'{bcolors.MAGENTA}{bcolors.BOLD}{original}{bcolors.ENDC}'
+        return original
+
+    def format_gpu(original, row_context=row_context, config=config):
+        try:
+            if float(row_context['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
+                return f'{bcolors.CYAN}{bcolors.BOLD}{original}{bcolors.ENDC}'
+        except KeyError:
+            pass
+        return original
+    
+    def format_user(original, row_context=row_context, config=config):
+        proc_usr = {}
+        for user_list in original:
+            this_user, this_pid = user_list
+            for user_mask in config['GPUR_USER_MASK'].split(','):
+                if user_mask in this_user:
+                    break
+            else:
+                if this_user not in proc_usr:
+                    proc_usr[this_user] = []
+                proc_usr[this_user].append(this_pid)
+        
+        proc_usr_str = ""
+        for this_user in proc_usr.keys():
+            if config['GPUR_SHOW_PID'] == 'full':
+                this_pids = "(" + ",".join([str(i) for i in proc_usr[this_user]]) + ")"
+            elif config['GPUR_SHOW_PID'] == 'num':
+                this_pids = "[" + str(len(proc_usr[this_user])) + "]"
+            elif config['GPUR_SHOW_PID'] == 'off':
+                this_pids = ""
+            for user_hl in config['GPUR_USER_NAME'].split(','):
+                if user_hl in this_user:
+                    proc_usr_str += f'{bcolors.GREEN}{this_user}{this_pids}{bcolors.ENDC} '
+                    break
+            else:
+                proc_usr_str += f'{this_user}{this_pids} '
+        return proc_usr_str
+    
+    dispatcher = {
+        'host': compose(format_failure, format_gpu),
+        'gpu': format_gpu,
+        'gpu_mem_avail': format_gpu,
+        'users': format_user,
+        'comment': format_failure
+    }
+
+    return dispatcher.get(col, lambda x:x)(original)
 
 
 if __name__ == '__main__':
@@ -157,12 +229,12 @@ if __name__ == '__main__':
     host_rows = []
     for res in results:
         if res['successful']:
-            host_rows += host_info_generator(res)
+            host_rows += host_info_parser(res)
         else:
             host_rows += [res]
 
     all_rows = []
     for row in host_rows:
-        all_rows.append(column_filter(row, columns))
+        all_rows.append(column_filter(row, columns, formatter=partial(context_formatter, config=config)))
         
     print(tabulate.tabulate(all_rows, headers=columns))

@@ -1,18 +1,19 @@
 import os
 import copy
-from collections import defaultdict
 
-config =dict(
+
+config = dict(
     # A list of hosts to query
     GPUR_SERVER_LIST = [f'host{i}' for i in range(11)],
     
-    # Path to the ssh client
+    # Absolute path to the ssh client
     GPUR_SSH_BIN = '/usr/bin/ssh',
 
-    # Columns to display as a comma-separated list
+    # Columns to display
     # Available columns:
-    # host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,
-    # gpu_power_max,cpu_load,cpu_count,mem_avail,mem_total,users,comment
+    #   host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,
+    #   gpu_power_max,cpu_load,cpu_count,mem_avail,mem_total,users,comment
+    # The list is comma-separated
     GPUR_COLUMNS = "host,gpu,gpu_mem_avail,gpu_mem_total,gpu_util,gpu_temp,gpu_power,cpu_load,cpu_count,mem_avail,mem_total,users,comment",
     
     # Maximum simultaneous query
@@ -27,15 +28,19 @@ config =dict(
     # A username will be highlighed if it contains strings in the following list
     # The list is comma-separated
     GPUR_USER_NAME = 'ziwei',
-    # A username will not be shown if it contains strings in the following list
+    # A username will be ignored if it contains strings in the following list
     # The list is comma-separated
     GPUR_USER_MASK = 'gdm',
+    # Controls how PID information is displayed
+    # If `full', show all the PIDs of a user
+    # If `num', show number of the user's processes
+    # If `off', only show the user's name
+    GPUR_SHOW_PID = 'num', 
     
-    # Classify a server as "SSH timeout" if a query is not completed within
-    # SSH_TIMEOUT seconds.
+    # The query times out if it is not completed after this seconds.
     GPUR_SSH_TIMEOUT = '5',
     
-    # Constants, no need to change in general. 
+    # Constants, no need to modify in general. 
     GPUR_CODE_TIMEOUT = '142',
     GPUR_CODE_SERVER_SIDE_ERROR = '143',
     GPUR_CODE_AUTH_ERROR = '255'
