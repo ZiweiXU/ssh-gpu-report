@@ -1,3 +1,5 @@
+#!env python
+
 import os
 import copy
 import json
@@ -90,11 +92,6 @@ def host_info_parser(host_result) -> List[List]:
         row_info['gpu_mem_total'] = this_gpu['memory.total']
         row_info['gpu_mem_avail'] = row_info['gpu_mem_total'] - row_info['gpu_mem_used']
 
-        # if float(row_info['gpu_mem_avail']) > float(config['GPUR_MEM_THRES']):
-        #     row_info['gpu'] = f'{bcolors.CYAN}{bcolors.BOLD}{gpu}{bcolors.ENDC}'
-        #     row_info['host'] = f'{bcolors.CYAN}{bcolors.BOLD}{host}{bcolors.ENDC}'
-        #     row_info['gpu_mem_avail'] = f'{bcolors.CYAN}{bcolors.BOLD}{row_info["gpu_mem_avail"]}{bcolors.ENDC}'
-
         row_info['gpu_power_max'] = this_gpu['enforced.power.limit']
         row_info['gpu_power'] = this_gpu['power.draw']
         row_info['gpu_util'] = this_gpu['utilization.gpu']
@@ -106,27 +103,19 @@ def host_info_parser(host_result) -> List[List]:
             this_user = this_gpu['processes'][proc]['username']
             this_pid = this_gpu['processes'][proc]['pid']
             proc_usr.append((this_user, this_pid))
-            # for user_mask in config['GPUR_USER_MASK'].split(','):
-            #     if user_mask in this_user:
-            #         break
-            # else:
-            #     for user_hl in config['GPUR_USER_NAME'].split(','):
-            #         if user_hl in this_user:
-            #             proc_usr += f'{bcolors.GREEN}{this_user}({this_pid}){bcolors.ENDC} '
-            #             break
-            #     else:
-            #         proc_usr += f'{this_user}({this_pid}) '
 
         row_info['users'] = proc_usr
 
         row_info.update(host_info)
-
         host_rows.append(row_info)
     
     return host_rows
 
 
 def column_filter(host_row, columns, formatter=lambda x, y, z: x):
+    """From host_row, filter out requested columns.
+    Optionally, apply format to the columns.
+    """
     this_row = []
     for col in columns:
         if col in host_row:
@@ -201,10 +190,11 @@ def context_formatter(original, col, row_context, config):
         'gpu': format_gpu,
         'gpu_mem_avail': format_gpu,
         'users': format_user,
-        'comment': format_failure
+        'comment': format_failure,
+        '*': lambda x:x
     }
 
-    return dispatcher.get(col, lambda x:x)(original)
+    return dispatcher.get(col, dispatcher['*'])(original)
 
 
 if __name__ == '__main__':
@@ -216,10 +206,10 @@ if __name__ == '__main__':
     columns = config['GPUR_COLUMNS'].split(',')
 
     worker_pool = Pool(int(config['GPUR_QUERY_BATCH_SIZE']))
-    server_list = config['GPUR_SERVER_LIST']
+    server_list = config['GPUR_SERVER_LIST'].split(',')
     
     if bool(int(config['GPUR_PBAR'])):
-        with yaspin.yaspin(text='Querying... ', side='right', timer=True):
+        with yaspin.yaspin(text='Querying...'):
             results = worker_pool.map(partial(query_worker, config=config), server_list)
     else:
         results = worker_pool.map(partial(query_worker, config=config), server_list)

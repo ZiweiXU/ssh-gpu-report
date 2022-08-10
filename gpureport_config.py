@@ -4,7 +4,8 @@ import copy
 
 config = dict(
     # A list of hosts to query
-    GPUR_SERVER_LIST = [f'host{i}' for i in range(11)],
+    # The list is comma-separated
+    GPUR_SERVER_LIST = ",".join([f'host{i}' for i in range(11)]),
     
     # Absolute path to the ssh client
     GPUR_SSH_BIN = '/usr/bin/ssh',
