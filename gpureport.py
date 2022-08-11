@@ -1,4 +1,28 @@
 #!env python
+# The MIT License
+
+# Copyright (c) 2022 Ziwei Xu <ziwei-xu@outlook.com>
+
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import copy
@@ -13,7 +37,7 @@ try:
 except:
     print("Please install tabulate and yaspin using ``pip install --user tabulate yaspin''")
 
-from gpureport_config import get_config
+from gpureport_config import get_config, override_config
 
 class bcolors:
     HEADER = '\033[95m'
@@ -52,11 +76,11 @@ def query_worker(host, config):
     return_code = proc.returncode
     if return_code != 0:
         if return_code == int(config['GPUR_CODE_SERVER_SIDE_ERROR']):
-            result.update({'successful': False, 'comment': 'Server Side Err'})
+            result.update({'successful': False, 'comment': 'Remote side err'})
         elif return_code == int(config['GPUR_CODE_AUTH_ERROR']):
-            result.update({'successful': False, 'comment': 'SSH Rej'})
+            result.update({'successful': False, 'comment': 'Remote rej'})
         else:
-            result.update({'successful': False, 'comment': f'Unknown Err {return_code}'})
+            result.update({'successful': False, 'comment': f'Unknown err {return_code}'})
 
     return result
 
@@ -77,7 +101,7 @@ def host_info_parser(host_result) -> List[List]:
         gpu_info = json.loads(gpu_info)
     except json.decoder.JSONDecodeError:
         row_info = copy.deepcopy(host_info)
-        row_info['comment'] = host_result['comment'] + 'GPU Err'
+        row_info['comment'] = host_result['comment'] + 'Remote gpustat err'
         host_rows.append(row_info)
         return host_rows
     
@@ -173,7 +197,7 @@ def context_formatter(original, col, row_context, config):
         for this_user in proc_usr.keys():
             if config['GPUR_SHOW_PID'] == 'full':
                 this_pids = "(" + ",".join([str(i) for i in proc_usr[this_user]]) + ")"
-            elif config['GPUR_SHOW_PID'] == 'num':
+            elif config['GPUR_SHOW_PID'] == 'count':
                 this_pids = "[" + str(len(proc_usr[this_user])) + "]"
             elif config['GPUR_SHOW_PID'] == 'off':
                 this_pids = ""
@@ -199,9 +223,7 @@ def context_formatter(original, col, row_context, config):
 
 if __name__ == '__main__':
     config = get_config()
-    for key in config:
-        if key in os.environ:
-            config[key] = os.environ[key]
+    override_config(config, os.environ)
 
     columns = config['GPUR_COLUMNS'].split(',')
 
@@ -225,6 +247,14 @@ if __name__ == '__main__':
 
     all_rows = []
     for row in host_rows:
-        all_rows.append(column_filter(row, columns, formatter=partial(context_formatter, config=config)))
+        if bool(int(config['GPUR_TABLE_FORMAT'])):
+            formatter = partial(context_formatter, config=config)
+        else:
+            formatter = lambda x,y,z: x
+        all_rows.append(column_filter(row, columns, formatter=formatter))
         
-    print(tabulate.tabulate(all_rows, headers=columns))
+    
+    if bool(int(config['GPUR_TABLE_HEADER'])):
+        print(tabulate.tabulate(all_rows, headers=columns))
+    else:
+        print(tabulate.tabulate(all_rows, tablefmt='plain'))

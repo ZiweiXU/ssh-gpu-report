@@ -1,7 +1,7 @@
 #!/bin/bash
 # The MIT License
 
-# Copyright (c) 2022 Ziwei Xu <ziweixu.zwx@gmail.com>
+# Copyright (c) 2022 Ziwei Xu <ziwei-xu@outlook.com>
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation

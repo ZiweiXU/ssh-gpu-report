@@ -10,7 +10,7 @@ The purpose of this utility is to enable an easy grasp of GPU statistics when yo
 2. Useful information: remaining memory, utility (%), power, cpu load, and user list
 3. Fast query: queries are spawned as batches of parallel jobs (useful for a large pool)
 4. Filter and highlight GPU by remaining memory
-5. Feedbacks for failed cases
+5. Feedback for failed cases
 
 ## What's in the report
 
@@ -76,12 +76,12 @@ INTERACTIVE=0 bash gpureport.sh [config_file] > report.txt ; cat report.txt
 while true ; do IFS= ; report=$(INTERACTIVE=0 bash gpureport.sh) ; echo $report > report.txt ; sleep 60 ; done
 # Detach from the session
 ```
-and access the report at anytime using `cat report.txt`.
+and access the report at any time using `cat report.txt`.
 
-## Experimental Python implementation
+## Python Re-implementation
 
-There is an experimental Python implementation of `ssh-gpu-report` in the repository.
-The executable `gpureport.py` can be configured by `gpureport_config.py`
+There is a Python re-implementation in the repository.
+The executable `gpureport.py` can be configured by `gpureport_config.py` and environment variables.
 
 It requires `python >= 3.3`, and two packages `tabulate` and `yaspin`.
 The prerequisites can be installed by `pip install --user tabulate yaspin`.
@@ -91,3 +91,8 @@ Besides all the features in the bash version, it has the following improvements:
 - More information: `cpu_count`, `mem_avail`, and `mem_total`.
 - You can turn off undesired columns by removing entries in `GPUR_COLUMNS`.
 - All the entries in the config can be overridden by environment variables.
+
+For example, if you want to check only host names, system load, and available memory, for a group of hosts different from that in your config, and you want the result to be headerless and without highlight: 
+```shell
+GPUR_SERVER_LIST=host1,host2,tsoh1,tosh2 GPUR_COLUMNS=host,cpu_load,mem_avail GPUR_TABLE_HEADER=0 GPUR_TABLE_FORMAT=0 python gpureport.py
+```

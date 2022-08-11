@@ -1,7 +1,8 @@
 import os
 import copy
 
-
+# All the keys are in the format GPUR_[NAME_OF_THE_KEY]
+# All the values can be overriden by environment variables
 config = dict(
     # A list of hosts to query
     # The list is comma-separated
@@ -29,14 +30,25 @@ config = dict(
     # A username will be highlighed if it contains strings in the following list
     # The list is comma-separated
     GPUR_USER_NAME = 'ziwei',
+    
     # A username will be ignored if it contains strings in the following list
     # The list is comma-separated
     GPUR_USER_MASK = 'gdm',
+    
     # Controls how PID information is displayed
     # If `full', show all the PIDs of a user
-    # If `num', show number of the user's processes
+    # If `count', show count of the user's processes
     # If `off', only show the user's name
-    GPUR_SHOW_PID = 'num', 
+    GPUR_SHOW_PID = 'count',
+
+    # Whether to show table header
+    # If set to 1, display the header
+    # If set to 0, the header will be hidden
+    GPUR_TABLE_HEADER = '1',
+
+    # Whether to format table cells
+    # If set to 0, the cells will not be formatted (no colour highlights etc.)
+    GPUR_TABLE_FORMAT = '1',
     
     # The query times out if it is not completed after this seconds.
     GPUR_SSH_TIMEOUT = '5',
@@ -49,3 +61,8 @@ config = dict(
 
 def get_config():
     return copy.deepcopy(config)
+
+def override_config(this, that):
+    for key in this:
+        if key in that:
+            this[key] = that[key]
