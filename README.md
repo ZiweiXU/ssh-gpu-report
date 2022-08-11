@@ -63,7 +63,10 @@ The prerequisites can be installed by `pip install --user tabulate yaspin`.
 
 Remote side:
 - SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file), check [this](https://kb.iu.edu/d/aews) for instructions.
-- Remote side: [gpustat](https://github.com/wookayin/gpustat) installed on all remote hosts. Note that `gpustat` must be runnable in non-interactive sessions. Test this with `ssh HOSTNAME "gpustat"`. If GPU information is properly displayed then it's good to go. Otherwise, you will need some [extra steps on the remote](https://superuser.com/questions/1468098/command-is-not-found-using-ssh-roothost-command).
+- Remote side: [gpustat](https://github.com/wookayin/gpustat) installed on all remote hosts.
+Note that `gpustat` must be runnable in non-interactive sessions. 
+Test this by running `ssh HOSTNAME "gpustat"` on the local side. 
+If the command yields an error, you can run `which gpustat && ln -sf "$(which gpustat)" /usr/bin/gpustat` on the remote side.
 
 ### Usage
 
@@ -94,8 +97,12 @@ Local side:
 - [jq](https://github.com/stedolan/jq) installed on the host running `gpureport.sh` (download a [release](https://github.com/stedolan/jq/releases/latest) and make sure `jq` is in `$PATH`, or install with [anaconda](https://anaconda.org/conda-forge/jq)).
 
 Remote side:
+
 - SSH access via key authentication to all target hosts (the hosts in `SERVER_LIST` in the configuration file), check [this](https://kb.iu.edu/d/aews) for instructions.
-- [gpustat](https://github.com/wookayin/gpustat) installed on all target hosts. Note that `gpustat` must be runnable in non-interactive sessions. Test this with `ssh HOSTNAME "gpustat"`. If GPU information is properly displayed then it's good to go. Otherwise you will need some [extra steps on the remote](https://superuser.com/questions/1468098/command-is-not-found-using-ssh-roothost-command).
+- Remote side: [gpustat](https://github.com/wookayin/gpustat) installed on all remote hosts.
+Note that `gpustat` must be runnable in non-interactive sessions. 
+Test this by running `ssh HOSTNAME "gpustat"` on the local side. 
+If the command yields an error, you can run `which gpustat && ln -sf "$(which gpustat)" /usr/bin/gpustat` on the remote side.
 
 
 ### Configuration
