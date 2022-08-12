@@ -1,11 +1,28 @@
-# ssh-gpu-report - Generating server utilization report with minimal configuration
+Generating a utilization report for (*nix) servers with minimal configuration.
+
+
+**Table of Contents**
+- [1. About](#1-about)
+  - [1.1. What's good about it](#11-whats-good-about-it)
+  - [1.2. What's in the report](#12-whats-in-the-report)
+- [2. Use the Python Version](#2-use-the-python-version)
+  - [2.1. Prerequisites](#21-prerequisites)
+  - [2.2. Usage](#22-usage)
+    - [2.2.1. Basic usage](#221-basic-usage)
+    - [2.2.2. Override defaults using environment variables](#222-override-defaults-using-environment-variables)
+- [3. Use the Bash Version](#3-use-the-bash-version)
+  - [3.1. Prerequisites](#31-prerequisites)
+  - [3.2. Configuration File](#32-configuration-file)
+  - [3.3. Usage](#33-usage)
+
+# 1. About
 
 **ssh-gpu-report** is a script that generates utility reports of remote host(s).
 The purpose of this script is to enable an easy grasp of remote server statistics when you have access to a large pool of GPU computation nodes, with minimal extra configuration efforts on the remote side.
 
 It has two implementations: [Python (recommended)](#use-the-python-version) and [Bash](#use-the-bash-version).
 
-## What's good about it
+## 1.1. What's good about it
 
 1. Minimal configuration efforts: no extra daemon/service is needed on the remote host
 2. Useful information: remaining memory, utility (%), power, cpu load, and user list
@@ -13,7 +30,7 @@ It has two implementations: [Python (recommended)](#use-the-python-version) and 
 4. Filter and highlight GPU by remaining memory
 5. Feedback for failed cases
 
-## What's in the report
+## 1.2. What's in the report
 
 The report consists of a table showing the statistics of GPUs on target hosts and a failure summary.
 The table should be readable enough.
@@ -44,7 +61,7 @@ Server-side error:  host3
 Wed Feb 32 24:61:61 +13 1900
 ```
 
-## Use the Python Version
+# 2. Use the Python Version
 
 The executable `gpureport.py` can be configured by `gpureport_config.py`.
 Environment variables can also be used to override configurations.
@@ -55,7 +72,7 @@ Besides all the features in the bash version, it has the following improvements:
 - Extra information: `cpu_count`, `mem_avail`, and `mem_total`.
 - All the entries in the config can be overridden by environment variables.
 
-### Prerequisites 
+## 2.1. Prerequisites 
 
 Local side:
 - `python >= 3.3`, and two packages `tabulate` and `yaspin`.
@@ -68,17 +85,19 @@ Note that `gpustat` must be runnable in non-interactive sessions.
 Test this by running `ssh HOSTNAME "gpustat"` on the local side. 
 If the command yields an error, you can run `which gpustat && ln -sf "$(which gpustat)" /usr/bin/gpustat` on the remote side.
 
-### Usage
+## 2.2. Usage
 
-Before using, please edit `gpureport_config.py` according to your needs and put it in the same directory as `gpureport.py`.
+Before using, edit `gpureport_config.py` according to your needs and put it in the same directory as `gpureport.py`.
 The file is self-documented.
 
-- Print the report to your terminal:
+### 2.2.1. Basic usage
+
+Print the report to your terminal:
 ```shell
 python gpureport.py
 ```
 
-- Override defaults using environment variables:
+### 2.2.2. Override defaults using environment variables
 
 For example, if you want to check host names, system load, and available memory, for a group of hosts different from defaults, and you want the result to be headerless and without highlight: 
 ```shell
@@ -86,9 +105,9 @@ GPUR_SERVER_LIST=host1,host2,tsoh1,tosh2 GPUR_COLUMNS=host,cpu_load,mem_avail GP
 ```
 
 
-## Use the Bash Version
+# 3. Use the Bash Version
 
-### Prerequisites 
+## 3.1. Prerequisites 
 
 Local side:
 - `bash`, and a terminal simulator with xterm-256color support (usually shipped with your linux/unix).
@@ -105,12 +124,12 @@ Test this by running `ssh HOSTNAME "gpustat"` on the local side.
 If the command yields an error, you can run `which gpustat && ln -sf "$(which gpustat)" /usr/bin/gpustat` on the remote side.
 
 
-### Configuration
+## 3.2. Configuration File
 
 The configuration template [gpureport_config.sh](gpureport_config.sh) provides all the required documentations and reasonable defaults.
 Some defaults can be overriden by environment variables.
 
-### Usage
+## 3.3. Usage
 
 - Print the report to your terminal:
 ```shell
